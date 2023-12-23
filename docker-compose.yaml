@@ -16,6 +16,7 @@ services:
 
   twinx:
     container_name: twinx_main
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
