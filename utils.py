@@ -326,9 +326,9 @@ async def sanity_check(joinedGuilds):
                 await remove_twitterUser(users[i], conn)
                 twitterUsers_count += 1
         
+    await close_connection(conn)
     logger.info(f"{guild_count} servers removed")
     logger.info(f"{twitterUsers_count} users removed")
-    await close_connection(conn)
     logger.info("Sanity check over")
     return
 
