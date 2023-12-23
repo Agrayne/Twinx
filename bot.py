@@ -5,7 +5,7 @@ import aiohttp
 
 import utils
 
-##################################################################
+
 
 bot = discord.Bot()
 
@@ -106,28 +106,30 @@ async def list(ctx):
 async def check_updates():
 
     tweets, subscription_webhooks = await utils.get_updates()
+    webhook_updates = []
 
     for user in tweets.keys():
-
         if not tweets[user]:
             continue
 
         for (msg, name, avatar_url) in tweets[user]:
-
             for (webhook_id, webhook_token, channel_id) in subscription_webhooks[user]:
+                webhook_updates.append((webhook_id, webhook_token, msg, name, avatar_url, channel_id))
 
-                async with aiohttp.ClientSession() as session:
-                    webhook = discord.Webhook.partial(webhook_id, webhook_token, session = session)
-                    try:
-                        await webhook.send(content = msg, username = name, avatar_url = avatar_url)
-                    except discord.errors.NotFound as e:
-                        (webhook_id, webhook_token) = await utils.update_webhook(bot.get_channel(channel_id))
-                        webhook = discord.Webhook.partial(webhook_id, webhook_token, session = session)
-                        await webhook.send(content = msg, username = name, avatar_url = avatar_url)
-                    except Exception as e:
-                        utils.logger.error(f"Error sending message through the webhook or creating a new one: {e}")
+    async with aiohttp.ClientSession() as session:
+        new_tweets = len(webhook_updates)
+        for (webhook_id, webhook_token, msg, name, avatar_url, channel_id) in webhook_updates:
+                webhook = discord.Webhook.partial(webhook_id, webhook_token, session=session)
+                try:
+                    await webhook.send(content=msg, username=name, avatar_url=avatar_url)
+                except discord.errors.NotFound:
+                    (webhook_id, webhook_token) = await utils.update_webhook(bot.get_channel(channel_id))
+                    webhook = discord.Webhook.partial(webhook_id, webhook_token, session=session)
+                    await webhook.send(content=msg, username=name, avatar_url=avatar_url)
+                except Exception as e:
+                    utils.logger.error(f"Error sending message through the webhook or creating a new one: {e}")
 
-    print('Successfully Updated')
+    utils.logger.info(f'Successfully Updated: Sent {new_tweets} new tweets')
 
 @check_updates.before_loop
 async def before_check_updates():
