@@ -102,7 +102,7 @@ async def list(ctx):
 
 # Update events
         
-@tasks.loop(minutes=utils.UPDATE_INTERVAL)
+@tasks.loop(minutes=int(utils.UPDATE_INTERVAL))
 async def check_updates():
 
     tweets, subscription_webhooks = await utils.get_updates()
