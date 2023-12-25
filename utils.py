@@ -94,6 +94,10 @@ def generate_message(name, feed_item):
     return message
 
 
+def get_username(title):
+    return title.split()[-1][1:]
+
+
 def create_hash(feed_dict):
     return hashlib.sha256((feed_dict.published + feed_dict.link).encode('utf-8')).hexdigest()
 
@@ -341,6 +345,8 @@ async def create_subscription(username, channel):
     if not feed.entries:
         return f"No twitter users found for ``@{username}``. Please check and try again"
     
+    username = get_username(feed.feed.title)
+    
     hash_code = create_hash(feed.entries[0])
 
     conn = await create_connection()
@@ -469,6 +475,7 @@ async def get_latest_tweet(username, channel):
         return False
     
     name = feed.feed.title
+    username = get_username(name)
     avatar_url = feed.feed.image['href']
     message = generate_message(name, feed.entries[0])
     channel_id = channel.id
