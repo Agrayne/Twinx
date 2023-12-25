@@ -382,10 +382,7 @@ async def remove_subscription(username, channel):
 
     conn = await create_connection()
 
-    if not await channel_in_sub(channel.id, conn):
-        await close_connection(conn)
-        return f"<#{channel.id}> has no active subscriptions."
-    elif username == '<All>':
+    if username == '<All>':
         await remove_sub(username, channel, conn)
         await close_connection(conn)
         return f"Successfully removed all active subscriptions in <#{channel.id}>"

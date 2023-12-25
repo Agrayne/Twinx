@@ -12,8 +12,11 @@ bot = discord.Bot()
 # Secondary Functions
 
 async def get_subbed_users(ctx: discord.AutocompleteContext):
-    '''This function will be used to get the subbed users list when using subscription remove command'''
+    '''This function will be used to get subbed user list when using the remove command'''
     users = await utils.fetch_subbed_users_by_channel(ctx.interaction.channel.id)
+    if not users:
+        users.append('---No subscriptions---')
+        return users
     users.insert(0, '<All>')
     return users
 
@@ -81,7 +84,10 @@ async def add(ctx, username: discord.Option(str, required = True, description= '
 
 @subscription.command(description='Unsubscribe to a twitter user')
 @commands.has_permissions(manage_channels=True)
-async def remove(ctx, username: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_subbed_users), required=True, description='List of Subscribed Twitter users')):
+async def remove(ctx, username: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_subbed_users), required=True)):
+
+    if username == '---No subscriptions---':
+        await ctx.respond(f'<#{ctx.channel.id}> has no active subscriptions.')
 
     await ctx.defer()
     msg = await utils.remove_subscription(username, ctx.channel)
