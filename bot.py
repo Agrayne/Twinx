@@ -75,7 +75,7 @@ subscription = discord.SlashCommandGroup('subscription', 'Commands related to tw
 
 @subscription.command(description='Subscribe to a twitter user')
 @commands.has_permissions(manage_channels=True)
-async def add(ctx, username: discord.Option(str, required = True, description= 'Twitter handle')):
+async def add(ctx, username: discord.Option(str, required = True, description= 'Separate multiple users with a space', name='Username(s)')):
     
     await ctx.defer()
     msg =  await utils.create_subscription(username, ctx.channel)
