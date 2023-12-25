@@ -142,6 +142,14 @@ async def fetch_subscribed_users(conn):
     return result
 
 
+async def fetch_subbed_users_by_channel(channel_id):
+    conn = await create_connection()
+    result = await conn.fetch('SELECT DISTINCT "username" FROM subs where "channelId" = $1', channel_id)
+    await close_connection(conn)
+    users = [user[0] for user in result]
+    return users
+
+
 async def update_webhook(channel):
     webhook = await channel.create_webhook(name='Twinx')
     webhook_id = webhook.id
@@ -264,14 +272,14 @@ async def list_sub(channel, conn):
     return user_list
 
 
-async def remove_sub(username, channel, conn, all):
+async def remove_sub(username, channel, conn):
     
     try:
-        if not all:
+        if username != '<All>':
             await conn.execute('DELETE FROM subs WHERE "username" = ($1) AND "channelId" = ($2)', username, channel.id)
             info_logger.debug(f"#{channel.name} from guild '{channel.guild.name}' has now unsubbed to @{username}.")
         else:
-            await conn.execute('DELETE FROM subs WHERE  "channelId" = ($1)', channel.id)
+            await conn.execute('DELETE FROM subs WHERE "channelId" = ($1)', channel.id)
             info_logger.debug(f"#{channel.name} from guild '{channel.guild.name}' has now unsubbed to all active subsciptions.")
     except Exception as e:
         db_logger.error(f"Error executing database query: {e}")
@@ -339,54 +347,55 @@ async def sanity_check(joinedGuilds):
 
 # Subscription functions
 
-async def create_subscription(username, channel):
+async def create_subscription(users, channel):
 
-    feed = feedparser.parse(f'https://nitter.woodland.cafe/{username}/with_replies/rss')
-    if not feed.entries:
-        return f"No twitter users found for ``@{username}``. Please check and try again"
-    
-    username = get_username(feed.feed.title)
-    
-    hash_code = create_hash(feed.entries[0])
-
+    msg = ''
     conn = await create_connection()
 
-    if not await sub_in_db(username, channel.id, conn):
-        if not await username_in_db(username, conn):
-            await add_user(username, hash_code, conn)
-        if not await channel_in_db(channel.id, conn):
-            await add_channel(channel, conn)
-    else:
-        await close_connection(conn)
-        return f"There is already an ongoing subscription for ``@{username}`` in <#{channel.id}>"
+    for user in users.split():
 
-    await add_sub(username, channel, conn)
+        feed = feedparser.parse(f'https://nitter.woodland.cafe/{user}/with_replies/rss')
+        if not feed.entries:
+            msg += f"No twitter users found for ``@{user}``. Please check and try again\n"
+            continue
+        
+        user = get_username(feed.feed.title)
+        hash_code = create_hash(feed.entries[0])
+
+        if not await sub_in_db(user, channel.id, conn):
+            if not await username_in_db(user, conn):
+                await add_user(user, hash_code, conn)
+            if not await channel_in_db(channel.id, conn):
+                await add_channel(channel, conn)
+        else:
+            msg += f"There is already an ongoing subscription for ``@{user}`` in <#{channel.id}>\n"
+            continue
+
+        await add_sub(user, channel, conn)
+        msg += f"<#{channel.id}> is now subscribed to ``@{user}``.\n"
 
     await close_connection(conn)
-    return f"<#{channel.id}> is now subscribed to ``@{username}``."
+    return msg
 
 
-async def remove_subscription(username, channel, all=False):
+async def remove_subscription(username, channel):
 
     conn = await create_connection()
 
-    if all:
-        if not await channel_in_sub(channel.id, conn):
-            await close_connection(conn)
-            return f"<#{channel.id}> has no active subscriptions."
-        else:
-            await remove_sub(username, channel, conn, all)
-            await close_connection(conn)
-            return f"Successfully removed all active subscriptions in <#{channel.id}>"
-
+    if not await channel_in_sub(channel.id, conn):
+        await close_connection(conn)
+        return f"<#{channel.id}> has no active subscriptions."
+    elif username == '<All>':
+        await remove_sub(username, channel, conn)
+        await close_connection(conn)
+        return f"Successfully removed all active subscriptions in <#{channel.id}>"
     elif not await sub_in_db(username, channel.id, conn):
         await close_connection(conn)
         return f"``@{username}`` was not in the list of subscriptions for <#{channel.id}>"
     else:
-        await remove_sub(username, channel, conn, all)
-    await close_connection(conn)
-
-    return f"Successfully unsubscribed to ``@{username}``"
+        await remove_sub(username, channel, conn)
+        await close_connection(conn)
+        return f"Successfully unsubscribed to ``@{username}``"
 
 
 async def list_subscriptions(channel):

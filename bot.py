@@ -6,8 +6,16 @@ import aiohttp
 import utils
 
 
-
 bot = discord.Bot()
+
+
+# Secondary Functions
+
+async def get_subbed_users(ctx: discord.AutocompleteContext):
+    '''This function will be used to get the subbed users list when using subscription remove command'''
+    users = await utils.fetch_subbed_users_by_channel(ctx.interaction.channel.id)
+    users.insert(0, '<All>')
+    return users
 
 
 # Bot Events
@@ -73,19 +81,10 @@ async def add(ctx, username: discord.Option(str, required = True, description= '
 
 @subscription.command(description='Unsubscribe to a twitter user')
 @commands.has_permissions(manage_channels=True)
-async def remove(ctx, username: discord.Option(str, default = None, description='Twitter handle'), all: discord.Option(bool, default = False, description='Remove all subscriptions')):
-
+async def remove(ctx, username: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_subbed_users), required=True, description='List of Subscribed Twitter users')):
 
     await ctx.defer()
-    if username == None and not all:
-        await ctx.respond("Enter a username or set 'all' to True")
-    if username != None and all:
-        await ctx.respond("Leave username blank if you want to remove all subscriptions")
-        return
-    if username != None:
-        msg = await utils.remove_subscription(username, ctx.channel, all=all)
-    else:
-        msg = await utils.remove_subscription(username, ctx.channel, all=all)
+    msg = await utils.remove_subscription(username, ctx.channel)
     await ctx.respond(msg)
 
 
